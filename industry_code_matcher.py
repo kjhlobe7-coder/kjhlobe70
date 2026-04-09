@@ -80,14 +80,7 @@ class IndustryCodeMatcher:
                 name="수동분류 필요",
                 confidence=0.0,
                 matched_keywords=[],
-                candidates=[
-                    {
-                        "code": code,
-                        "name": self.rules[code].get("name", ""),
-                        "score": score,
-                    }
-                    for code, score, _hits in scored[:top_k]
-                ],
+                candidates=[],
             )
 
         confidence = (best_score - second_score) / (best_score + 1.0)
