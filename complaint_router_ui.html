@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#14628b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="산업코드매칭" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <title>산업분류 코드 매칭</title>
   <style>
     :root {
@@ -102,6 +108,30 @@
     .guide .subsec strong { display: block; color: #24425d; margin-bottom: 4px; }
     .guide ul { margin: 0; padding-left: 18px; color: #30495f; }
     .guide li { margin: 2px 0; }
+    .install-banner {
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #b9d4e6;
+      background: #eef8ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #1e445f;
+      font-size: 13px;
+    }
+    .install-banner.show { display: flex; }
+    .install-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .install-actions button { padding: 8px 12px; font-size: 13px; }
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .head { padding: 16px; }
+      .head h1 { font-size: 20px; }
+      .body { padding: 14px 16px 16px; }
+      textarea { min-height: 104px; font-size: 15px; }
+      th, td { font-size: 13px; }
+      .install-banner { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
@@ -111,6 +141,13 @@
       <p id="sourceText">KSIC 제11차 데이터 로딩 중...</p>
     </section>
     <section class="body">
+      <section id="installBanner" class="install-banner" aria-live="polite">
+        <div>홈 화면에 추가하면 앱처럼 빠르게 실행할 수 있습니다.</div>
+        <div class="install-actions">
+          <button id="installBtn" type="button">설치</button>
+          <button id="installCloseBtn" type="button" class="ghost">닫기</button>
+        </div>
+      </section>
       <textarea id="industryInput" placeholder="예) 유리 제조, 자동차 제조, 전자상거래 의류 판매"></textarea>
       <div class="row">
         <button id="industryRun" type="button">코드 매칭하기</button>
@@ -166,6 +203,7 @@
 
     let KSIC_ITEMS = [];
     let KSIC_BY_CODE = new Map();
+    let deferredInstallPrompt = null;
 
     function normalize(text) {
       return (text || "")
@@ -511,6 +549,34 @@
     document.getElementById("industrySample").addEventListener("click", () => {
       document.getElementById("industryInput").value = "자동차 제조";
     });
+
+    const installBanner = document.getElementById("installBanner");
+    const installBtn = document.getElementById("installBtn");
+    const installCloseBtn = document.getElementById("installCloseBtn");
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      installBanner.classList.add("show");
+    });
+
+    installBtn.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      installBanner.classList.remove("show");
+    });
+
+    installCloseBtn.addEventListener("click", () => {
+      installBanner.classList.remove("show");
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
 
     loadIndex();
   </script>

@@ -3,9 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#14628b" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <title>산업분류 코드 매칭</title>
   <meta http-equiv="refresh" content="0; url=/complaint_router_ui.html" />
   <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
     window.location.replace("/complaint_router_ui.html");
   </script>
 </head>

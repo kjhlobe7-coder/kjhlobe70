@@ -1,0 +1,26 @@
+{
+  "name": "산업분류 코드 매칭",
+  "short_name": "산업코드매칭",
+  "description": "사업체 업종 내역을 입력해 KSIC 산업분류 코드를 매칭합니다.",
+  "start_url": "/complaint_router_ui.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ecf4ff",
+  "theme_color": "#14628b",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
