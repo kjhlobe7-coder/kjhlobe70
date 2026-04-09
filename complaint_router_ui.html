@@ -1,14 +1,14 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>誘쇱썝/?곗뾽遺꾨쪟 留ㅼ묶 ?붾㈃</title>
+  <title>행정 업무 자동 분류 화면</title>
   <style>
     :root {
       --bg-a: #f3faf6;
       --bg-b: #ecf4ff;
-      --card: #fff;
+      --card: #ffffff;
       --ink: #16253a;
       --sub: #566378;
       --line: #d8e3ef;
@@ -17,17 +17,20 @@
       --tab-off: #f4f8fc;
       --warn: #a85f00;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-height: 100vh;
       padding: 24px;
       display: grid;
       place-items: center;
-      font-family: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
       color: var(--ink);
       background: radial-gradient(circle at 10% 10%, #fff 0%, var(--bg-a) 45%, var(--bg-b) 100%);
     }
+
     .panel {
       width: min(1000px, 100%);
       border-radius: 18px;
@@ -36,18 +39,22 @@
       overflow: hidden;
       box-shadow: 0 18px 46px rgba(30, 67, 97, 0.14);
     }
+
     .head {
       padding: 22px 24px;
       border-bottom: 1px solid var(--line);
       background: linear-gradient(120deg, #e8fff4, #edf5ff);
     }
+
     .head h1 { margin: 0; font-size: 24px; }
     .head p { margin: 8px 0 0; font-size: 14px; color: var(--sub); }
+
     .tabs {
       display: flex;
       gap: 8px;
       padding: 14px 24px 0;
     }
+
     .tab-btn {
       border: 1px solid var(--line);
       background: var(--tab-off);
@@ -57,18 +64,22 @@
       font-weight: 700;
       cursor: pointer;
     }
+
     .tab-btn.active {
       color: #fff;
       border-color: transparent;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
     }
+
     .body {
       display: grid;
       gap: 14px;
       padding: 14px 24px 24px;
     }
+
     .view { display: none; }
     .view.active { display: grid; gap: 14px; }
+
     textarea {
       width: 100%;
       min-height: 126px;
@@ -79,17 +90,21 @@
       font-size: 16px;
       line-height: 1.45;
       outline: none;
+      color: var(--ink);
     }
+
     textarea:focus {
       border-color: #8abfda;
       box-shadow: 0 0 0 4px rgba(83, 151, 193, 0.14);
     }
+
     .row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
+
     button {
       border: 0;
       border-radius: 10px;
@@ -100,26 +115,31 @@
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       cursor: pointer;
     }
+
     .ghost {
       background: #fff;
       color: #254261;
       border: 1px solid var(--line);
       font-weight: 600;
     }
+
     .result {
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 14px;
       background: #fbfdff;
     }
+
     .result h2 { margin: 0 0 8px; font-size: 18px; }
     .meta { margin: 0 0 8px; color: var(--sub); font-size: 14px; }
+
     .chips {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       margin: 8px 0 14px;
     }
+
     .chip {
       font-size: 12px;
       padding: 5px 10px;
@@ -128,54 +148,58 @@
       color: #1b597f;
       background: #ecf6fd;
     }
+
     .warn { color: var(--warn); font-weight: 700; }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 14px;
     }
+
     th, td {
       border-top: 1px solid var(--line);
       text-align: left;
       padding: 8px 6px;
     }
+
     th { color: #2e4e69; font-size: 13px; }
   </style>
 </head>
 <body>
   <main class="panel">
     <section class="head">
-      <h1>?됱젙 ?낅Т ?먮룞 遺꾨쪟 ?붾㈃</h1>
-      <p>誘쇱썝 ?뚭? 遺??遺꾨쪟? ?ъ뾽泥??곗뾽遺꾨쪟 肄붾뱶 留ㅼ묶?????붾㈃?먯꽌 ?ъ슜?????덉뒿?덈떎.</p>
+      <h1>행정 업무 자동 분류 화면</h1>
+      <p>민원 소관 부서 분류와 사업체 산업분류 코드 매칭을 한 화면에서 사용할 수 있습니다.</p>
     </section>
 
     <section class="tabs">
-      <button class="tab-btn active" data-tab="complaint">誘쇱썝 遺꾨쪟</button>
-      <button class="tab-btn" data-tab="industry">?곗뾽遺꾨쪟 肄붾뱶 留ㅼ묶</button>
+      <button class="tab-btn active" data-tab="complaint">민원 분류</button>
+      <button class="tab-btn" data-tab="industry">산업분류 코드 매칭</button>
     </section>
 
     <section class="body">
       <section id="complaintView" class="view active">
-        <textarea id="complaintInput" placeholder="?? 遺덈쾿二쇱젙李?李⑤웾 ?뚮Ц??踰꾩뒪媛 ?듯뻾??紐삵빀?덈떎."></textarea>
+        <textarea id="complaintInput" placeholder="예: 불법주정차 차량 때문에 버스가 통행을 못합니다."></textarea>
         <div class="row">
-          <button id="complaintRun" type="button">誘쇱썝 遺꾨쪟?섍린</button>
-          <button id="complaintSample" class="ghost" type="button">?섑뵆 ?ｊ린</button>
+          <button id="complaintRun" type="button">민원 분류하기</button>
+          <button id="complaintSample" class="ghost" type="button">샘플 넣기</button>
         </div>
         <section id="complaintResult" class="result" aria-live="polite">
-          <h2>寃곌낵 ?湲?以?/h2>
-          <p class="meta">誘쇱썝 ?댁슜???낅젰????遺꾨쪟瑜??ㅽ뻾?섏꽭??</p>
+          <h2>결과 대기 중</h2>
+          <p class="meta">민원 내용을 입력한 뒤 분류를 실행하세요.</p>
         </section>
       </section>
 
       <section id="industryView" class="view">
-        <textarea id="industryInput" placeholder="?? ?ㅻ쭏?몄뒪?좎뼱濡??앺솢?⑺뭹 ?⑤씪???먮ℓ"></textarea>
+        <textarea id="industryInput" placeholder="예: 건설업"></textarea>
         <div class="row">
-          <button id="industryRun" type="button">肄붾뱶 留ㅼ묶?섍린</button>
-          <button id="industrySample" class="ghost" type="button">?섑뵆 ?ｊ린</button>
+          <button id="industryRun" type="button">코드 매칭하기</button>
+          <button id="industrySample" class="ghost" type="button">샘플 넣기</button>
         </div>
         <section id="industryResult" class="result" aria-live="polite">
-          <h2>寃곌낵 ?湲?以?/h2>
-          <p class="meta">?ъ뾽泥??낆쥌 ?댁뿭???낅젰????留ㅼ묶???ㅽ뻾?섏꽭??</p>
+          <h2>결과 대기 중</h2>
+          <p class="meta">사업체 업종 내역을 입력한 뒤 매칭을 실행하세요.</p>
         </section>
       </section>
     </section>
@@ -183,11 +207,11 @@
 
   <script>
     const complaintRules = {
-      "援먰넻?됱젙怨?: { keywords: { "踰꾩뒪": 3, "?앹떆": 3, "援먰넻?좏샇": 4, "?좏샇??: 4, "遺덈쾿二쇱젙李?: 5, "二쇱감": 3 } },
-      "?꾨줈愿由ш낵": { keywords: { "?꾨줈": 2, "?ы듃?": 5, "?꾩뒪?뷀듃": 4, "蹂대룄釉붾줉": 4, "媛濡쒕벑": 3 } },
-      "?섍꼍愿由ш낵": { keywords: { "?곕젅湲?: 4, "?먭린臾?: 4, "?낆랬": 5, "誘몄꽭癒쇱?": 4, "臾대떒?ш린": 5 } },
-      "蹂듭??뺤콉怨?: { keywords: { "湲곗큹?앺솢": 4, "?앷퀎湲됱뿬": 4, "蹂듭?": 2, "?뚮큵": 3, "湲닿툒吏??: 4 } },
-      "?곹븯?섎룄怨?: { keywords: { "?섎룛臾?: 4, "?꾩닔": 5, "?섏닔援?: 4, "?섏닔??: 4, "移⑥닔": 4 } }
+      "교통행정과": { keywords: { "버스": 3, "택시": 3, "교통신호": 4, "신호등": 4, "불법주정차": 5, "주차": 3 } },
+      "도로관리과": { keywords: { "도로": 2, "포트홀": 5, "아스팔트": 4, "보도블록": 4, "가로등": 3 } },
+      "환경관리과": { keywords: { "쓰레기": 4, "폐기물": 4, "악취": 5, "미세먼지": 4, "무단투기": 5 } },
+      "복지정책과": { keywords: { "기초생활": 4, "생계급여": 4, "복지": 2, "돌봄": 3, "긴급지원": 4 } },
+      "상하수도과": { keywords: { "수돗물": 4, "누수": 5, "하수구": 4, "하수도": 4, "침수": 4 } }
     };
 
     const industryRules = {
@@ -228,32 +252,38 @@
       entries.sort((a, b) => b.score - a.score);
       const top = entries[0];
       const secondScore = entries[1] ? entries[1].score : 0;
-      const confidence = top.score > 0 ? Math.max(0, Math.min(1, Number(((top.score - secondScore) / (top.score + 1)).toFixed(3)))) : 0;
+      const confidence = top.score > 0
+        ? Math.max(0, Math.min(1, Number(((top.score - secondScore) / (top.score + 1)).toFixed(3))))
+        : 0;
 
       return { entries, top, confidence };
     }
 
     function renderTable(candidates, type) {
       if (type === "complaint") {
-        return candidates.map(c => `<tr><td>${c.key}</td><td>${c.score}</td></tr>`).join("");
+        return candidates.map((c) => `<tr><td>${c.key}</td><td>${c.score}</td></tr>`).join("");
       }
-      return candidates.map(c => `<tr><td>${c.key}</td><td>${c.name}</td><td>${c.score}</td></tr>`).join("");
+      return candidates.map((c) => `<tr><td>${c.key}</td><td>${c.name}</td><td>${c.score}</td></tr>`).join("");
     }
 
     function runComplaint() {
       const text = document.getElementById("complaintInput").value.trim();
-      if (!text) return alert("誘쇱썝 ?댁슜???낅젰?댁＜?몄슂.");
+      if (!text) return alert("민원 내용을 입력해주세요.");
+
       const { entries, top, confidence } = scoreByRules(text, complaintRules);
       const candidates = entries.slice(0, 3);
       const resultBox = document.getElementById("complaintResult");
-      const chips = top.score > 0 ? top.hits.map(k => `<span class="chip">${k}</span>`).join("") : `<span class="warn">留ㅼ묶 ?ㅼ썙???놁쓬 (?섎룞 寃??沅뚯옣)</span>`;
-      const dept = top.score > 0 ? top.key : "誘쇱썝珥앷큵(?섎룞遺꾨쪟)";
+      const chips = top.score > 0
+        ? top.hits.map((k) => `<span class="chip">${k}</span>`).join("")
+        : `<span class="warn">매칭 키워드 없음 (수동 검토 권장)</span>`;
+      const department = top.score > 0 ? top.key : "민원총괄(수동분류)";
+
       resultBox.innerHTML = `
-        <h2>異붿쿇 遺?? ${dept}</h2>
-        <p class="meta">?좊ː?? ${confidence.toFixed(3)} | ?낅젰: ${text}</p>
+        <h2>추천 부서: ${department}</h2>
+        <p class="meta">신뢰도: ${confidence.toFixed(3)} | 입력: ${text}</p>
         <div class="chips">${chips}</div>
         <table>
-          <thead><tr><th>?꾨낫 遺??/th><th>?먯닔</th></tr></thead>
+          <thead><tr><th>후보 부서</th><th>점수</th></tr></thead>
           <tbody>${renderTable(candidates, "complaint")}</tbody>
         </table>
       `;
@@ -261,20 +291,24 @@
 
     function runIndustry() {
       const text = document.getElementById("industryInput").value.trim();
-      if (!text) return alert("?낆쥌 ?댁뿭???낅젰?댁＜?몄슂.");
+      if (!text) return alert("업종 내역을 입력해주세요.");
+
       const { entries, top, confidence } = scoreByRules(text, industryRules);
       const candidates = entries.slice(0, 3);
       const resultBox = document.getElementById("industryResult");
-      const chips = top.score > 0 ? top.hits.map(k => `<span class="chip">${k}</span>`).join("") : `<span class="warn">留ㅼ묶 ?ㅼ썙???놁쓬 (?섎룞 遺꾨쪟 ?꾩슂)</span>`;
+      const chips = top.score > 0
+        ? top.hits.map((k) => `<span class="chip">${k}</span>`).join("")
+        : `<span class="warn">매칭 키워드 없음 (수동 분류 필요)</span>`;
       const matchedCode = top.score > 0 ? top.key : "UNMATCHED";
-      const matchedName = top.score > 0 ? top.name : "?섎룞遺꾨쪟 ?꾩슂";
+      const matchedName = top.score > 0 ? top.name : "수동분류 필요";
+
       resultBox.innerHTML = `
-        <h2>異붿쿇 肄붾뱶: ${matchedCode}</h2>
-        <p class="meta">?곗뾽遺꾨쪟紐? ${matchedName}</p>
-        <p class="meta">?좊ː?? ${confidence.toFixed(3)} | ?낅젰: ${text}</p>
+        <h2>추천 코드: ${matchedCode}</h2>
+        <p class="meta">산업분류명: ${matchedName}</p>
+        <p class="meta">신뢰도: ${confidence.toFixed(3)} | 입력: ${text}</p>
         <div class="chips">${chips}</div>
         <table>
-          <thead><tr><th>?꾨낫 肄붾뱶</th><th>?곗뾽遺꾨쪟紐?/th><th>?먯닔</th></tr></thead>
+          <thead><tr><th>후보 코드</th><th>산업분류명</th><th>점수</th></tr></thead>
           <tbody>${renderTable(candidates, "industry")}</tbody>
         </table>
       `;
@@ -283,15 +317,15 @@
     document.getElementById("complaintRun").addEventListener("click", runComplaint);
     document.getElementById("industryRun").addEventListener("click", runIndustry);
     document.getElementById("complaintSample").addEventListener("click", () => {
-      document.getElementById("complaintInput").value = "遺덈쾿二쇱젙李?李⑤웾 ?뚮Ц??踰꾩뒪媛 ?듯뻾??紐삵빀?덈떎. ?⑥냽 ?붿껌?⑸땲??";
+      document.getElementById("complaintInput").value = "불법주정차 차량 때문에 버스가 통행을 못합니다. 단속 요청합니다.";
     });
     document.getElementById("industrySample").addEventListener("click", () => {
-      document.getElementById("industryInput").value = "건설";
+      document.getElementById("industryInput").value = "건설업";
     });
 
     for (const btn of document.querySelectorAll(".tab-btn")) {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         const tab = btn.dataset.tab;
         document.getElementById("complaintView").classList.toggle("active", tab === "complaint");
@@ -301,4 +335,3 @@
   </script>
 </body>
 </html>
-
