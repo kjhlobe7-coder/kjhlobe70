@@ -17,17 +17,62 @@
       --warn: #a85f00;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; padding: 24px; display: grid; place-items: center; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif; color: var(--ink); background: radial-gradient(circle at 10% 10%, #fff 0%, var(--bg-a) 45%, var(--bg-b) 100%); }
-    .panel { width: min(1000px, 100%); border-radius: 18px; background: var(--card); border: 1px solid var(--line); overflow: hidden; box-shadow: 0 18px 46px rgba(30, 67, 97, 0.14); }
-    .head { padding: 22px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(120deg, #e8fff4, #edf5ff); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 10% 10%, #fff 0%, var(--bg-a) 45%, var(--bg-b) 100%);
+    }
+    .panel {
+      width: min(1000px, 100%);
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      box-shadow: 0 18px 46px rgba(30, 67, 97, 0.14);
+    }
+    .head {
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(120deg, #e8fff4, #edf5ff);
+    }
     .head h1 { margin: 0; font-size: 24px; }
     .head p { margin: 8px 0 0; font-size: 14px; color: var(--sub); }
     .body { display: grid; gap: 14px; padding: 18px 24px 24px; }
-    textarea { width: 100%; min-height: 126px; resize: vertical; border: 1px solid var(--line); border-radius: 12px; padding: 14px; font-size: 16px; line-height: 1.45; outline: none; color: var(--ink); }
+    textarea {
+      width: 100%;
+      min-height: 126px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 16px;
+      line-height: 1.45;
+      outline: none;
+      color: var(--ink);
+    }
     textarea:focus { border-color: #8abfda; box-shadow: 0 0 0 4px rgba(83, 151, 193, 0.14); }
     .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    button { border: 0; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--primary), var(--primary-2)); cursor: pointer; }
-    .ghost { background: #fff; color: #254261; border: 1px solid var(--line); font-weight: 600; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      cursor: pointer;
+    }
+    .ghost {
+      background: #fff;
+      color: #254261;
+      border: 1px solid var(--line);
+      font-weight: 600;
+    }
     .result { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #fbfdff; }
     .result h2 { margin: 0 0 8px; font-size: 18px; }
     .meta { margin: 0 0 8px; color: var(--sub); font-size: 14px; }
@@ -43,97 +88,192 @@
   <main class="panel">
     <section class="head">
       <h1>산업분류 코드 매칭</h1>
-      <p id="sourceText">KSIC 제11차 통계청 자료를 불러오는 중...</p>
+      <p id="sourceText">KSIC 제11차 데이터 로딩 중...</p>
     </section>
     <section class="body">
-      <textarea id="industryInput" placeholder="예: 자동차 제조"></textarea>
+      <textarea id="industryInput" placeholder="예) 유리 제조, 자동차 제조, 전자상거래 의류 판매"></textarea>
       <div class="row">
         <button id="industryRun" type="button">코드 매칭하기</button>
         <button id="industrySample" class="ghost" type="button">샘플 넣기</button>
       </div>
       <section id="industryResult" class="result" aria-live="polite">
         <h2>결과 대기 중</h2>
-        <p class="meta">업종 내역을 입력한 뒤 매칭을 실행하세요.</p>
+        <p class="meta">업종 내역을 입력하고 매칭을 실행해 주세요.</p>
       </section>
     </section>
   </main>
+
   <script>
-    const STOPWORDS = new Set(["제조", "제조업", "서비스", "서비스업", "업", "업종", "기타", "및", "도매", "소매"]);
+    const STOPWORDS = new Set([
+      "업", "업종", "산업", "산업분류", "분류", "사업", "사업체", "회사",
+      "기업", "제조", "제조업", "판매", "서비스", "서비스업", "기타", "관련"
+    ]);
+
+    const INTENT_TOKENS = {
+      제조: new Set(["제조", "생산", "가공", "조립"]),
+      판매: new Set(["판매", "유통", "도매", "소매", "쇼핑몰"]),
+      수리: new Set(["수리", "정비", "보수"]),
+      공사: new Set(["공사", "시공", "건설", "설치", "건축", "토목"]),
+      운송: new Set(["운송", "물류", "배송", "택배", "화물", "여객", "운반"])
+    };
+
     let KSIC_ITEMS = [];
 
     function normalize(text) {
-      return (text || "").toLowerCase().replace(/[^\w가-힣]+/g, " ").replace(/\s+/g, "");
+      return (text || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^0-9a-zA-Z가-힣]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
     }
 
     function tokens(text) {
-      return (text || "").toLowerCase().split(/[^\w가-힣]+/).map((s) => s.trim()).filter((s) => s && s.length >= 2 && !STOPWORDS.has(s));
+      const norm = normalize(text);
+      if (!norm) return [];
+      return norm
+        .split(" ")
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 2 && !STOPWORDS.has(s));
+    }
+
+    function inferIntents(inputTokens) {
+      const intents = new Set();
+      for (const t of inputTokens) {
+        for (const [intent, words] of Object.entries(INTENT_TOKENS)) {
+          if (words.has(t)) intents.add(intent);
+        }
+      }
+      return intents;
+    }
+
+    function textMatchScore(q, t) {
+      if (!q || !t) return 0;
+      if (q === t) return 30;
+      if (t.includes(q)) return 16;
+      if (q.includes(t)) return 11;
+      return 0;
+    }
+
+    function overlapScore(inputTokens, targetTokens, perToken) {
+      let score = 0;
+      const hits = [];
+      for (const tok of inputTokens) {
+        if (targetTokens.has(tok)) {
+          score += Math.min(perToken + tok.length * 0.3, perToken + 2.0);
+          hits.push(tok);
+        }
+      }
+      return { score, hits };
     }
 
     function scoreItem(inputText, item) {
-      const inputNorm = normalize(inputText);
-      const nameNorm = normalize(item.name);
+      const queryNorm = normalize(inputText);
       const inputTokens = tokens(inputText);
-      const nameTokens = tokens(item.name);
+      const inputIntents = inferIntents(inputTokens);
 
-      let score = 0;
+      const nameNorm = normalize(item.name || "");
+      let score = textMatchScore(queryNorm, nameNorm);
       const hits = [];
+      if (score > 0) hits.push(item.name);
 
-      if (inputNorm === nameNorm) {
-        score += 20;
-        hits.push(item.name);
-      } else if (inputNorm && nameNorm.includes(inputNorm)) {
-        score += 12;
-        hits.push(inputText.trim());
-      } else if (nameNorm && inputNorm.includes(nameNorm)) {
-        score += 8;
-        hits.push(item.name);
+      const nameSet = new Set(tokens(item.name || ""));
+      const nameOverlap = overlapScore(inputTokens, nameSet, 6.2);
+      score += nameOverlap.score;
+      hits.push(...nameOverlap.hits);
+
+      const notes = Array.isArray(item.notes) ? item.notes : [];
+      const includeNotes = Array.isArray(item.include_notes) ? item.include_notes : [];
+      const excludeNotes = Array.isArray(item.exclude_notes) ? item.exclude_notes : [];
+      const exampleNotes = Array.isArray(item.example_notes) ? item.example_notes : [];
+
+      for (const note of notes) {
+        const noteNorm = normalize(note);
+        score += textMatchScore(queryNorm, noteNorm) * 0.45;
+        const noteSet = new Set(tokens(note));
+        const noteOverlap = overlapScore(inputTokens, noteSet, 2.4);
+        score += noteOverlap.score;
+        hits.push(...noteOverlap.hits);
       }
 
-      for (const t of new Set(nameTokens)) {
-        if (inputNorm.includes(t)) {
-          score += Math.min(8, 1.5 + t.length * 0.8);
-          hits.push(t);
+      for (const note of includeNotes) {
+        const set = new Set(tokens(note));
+        const overlap = overlapScore(inputTokens, set, 2.9);
+        score += overlap.score;
+        hits.push(...overlap.hits);
+      }
+
+      for (const note of exampleNotes) {
+        const set = new Set(tokens(note));
+        const overlap = overlapScore(inputTokens, set, 2.6);
+        score += overlap.score;
+        hits.push(...overlap.hits);
+      }
+
+      const querySet = new Set(inputTokens);
+      for (const note of excludeNotes) {
+        const set = new Set(tokens(note));
+        let overlapCount = 0;
+        for (const t of querySet) {
+          if (set.has(t)) overlapCount += 1;
         }
+        score -= overlapCount * 1.8;
       }
 
-      for (const t of new Set(inputTokens)) {
-        if (nameNorm.includes(t)) {
-          score += Math.min(6, 1 + t.length * 0.7);
-          hits.push(t);
+      const combinedText = [item.name || "", ...notes, ...includeNotes, ...exampleNotes].join(" ");
+      const combinedTokens = new Set(tokens(combinedText));
+      for (const intent of inputIntents) {
+        const words = INTENT_TOKENS[intent];
+        let found = false;
+        for (const w of words) {
+          if (combinedTokens.has(w)) {
+            found = true;
+            break;
+          }
         }
+        if (!found) score -= 2.2;
       }
 
-      if ((item.code || "").toLowerCase() === (inputText || "").toLowerCase().trim()) {
-        score += 10;
-        hits.push(item.code);
-      }
+      if (/^[A-U]$/.test(item.code || "")) score *= 0.86;
+      if ((item.code || "").length >= 4 && score >= 7) score += 0.7;
 
-      if (/^[A-U]$/.test(item.code)) {
-        score *= 0.85;
-      }
-
+      const uniqHits = [...new Set(hits)].sort((a, b) => b.length - a.length).slice(0, 8);
       return {
         code: item.code,
         name: item.name,
-        score,
-        hits: [...new Set(hits)].sort((a, b) => b.length - a.length).slice(0, 6)
+        score: Math.max(score, 0),
+        hits: uniqHits
       };
     }
 
     function classify(text) {
-      const scored = KSIC_ITEMS.map((item) => scoreItem(text, item)).sort((a, b) => b.score - a.score);
+      const scored = KSIC_ITEMS
+        .map((item) => scoreItem(text, item))
+        .sort((a, b) => b.score - a.score);
+
       const top = scored[0];
       const second = scored[1] ? scored[1].score : 0;
       if (!top || top.score <= 0) {
-        return { code: "UNMATCHED", name: "수동분류 필요", confidence: 0, matched_keywords: [], candidates: [] };
+        return {
+          code: "UNMATCHED",
+          name: "수동분류 필요",
+          confidence: 0,
+          matched_keywords: [],
+          candidates: []
+        };
       }
+
       const confidence = Math.max(0, Math.min(1, Number(((top.score - second) / (top.score + 1)).toFixed(3))));
       return {
         code: top.code,
         name: top.name,
         confidence,
         matched_keywords: top.hits,
-        candidates: scored.slice(0, 3).map((x) => ({ code: x.code, name: x.name, score: Number(x.score.toFixed(3)) }))
+        candidates: scored.slice(0, 3).map((x) => ({
+          code: x.code,
+          name: x.name,
+          score: Number(x.score.toFixed(3))
+        }))
       };
     }
 
@@ -166,16 +306,22 @@
         const data = await res.json();
         KSIC_ITEMS = Array.isArray(data.items) ? data.items : [];
         const source = data.source ? `출처: ${data.source}` : "출처 정보 없음";
-        document.getElementById("sourceText").textContent = `KSIC 제11차 전체 분류 반영 (${KSIC_ITEMS.length}개 항목) | ${source}`;
-      } catch (e) {
-        document.getElementById("sourceText").textContent = "색인 파일 로딩 실패: ksic_index_full.json 확인 필요";
+        document.getElementById("sourceText").textContent = `KSIC 제11차 데이터 반영 (${KSIC_ITEMS.length}개 항목) | ${source}`;
+      } catch (error) {
+        document.getElementById("sourceText").textContent = "인덱스 파일 로딩 실패: ksic_index_full.json 확인 필요";
       }
     }
 
     document.getElementById("industryRun").addEventListener("click", () => {
       const text = document.getElementById("industryInput").value.trim();
-      if (!text) return alert("업종 내역을 입력해주세요.");
-      if (!KSIC_ITEMS.length) return alert("색인 데이터 로딩이 아직 끝나지 않았습니다.");
+      if (!text) {
+        alert("업종 내역을 입력해 주세요.");
+        return;
+      }
+      if (!KSIC_ITEMS.length) {
+        alert("인덱스 데이터 로딩이 아직 끝나지 않았습니다.");
+        return;
+      }
       render(classify(text), text);
     });
 
