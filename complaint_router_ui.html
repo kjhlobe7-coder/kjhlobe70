@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>행정 업무 자동 분류 화면</title>
+  <title>산업분류 코드 매칭</title>
   <style>
     :root {
       --bg-a: #f3faf6;
@@ -14,7 +14,6 @@
       --line: #d8e3ef;
       --primary: #1f7f5a;
       --primary-2: #14628b;
-      --tab-off: #f4f8fc;
       --warn: #a85f00;
     }
     * { box-sizing: border-box; }
@@ -43,32 +42,7 @@
     }
     .head h1 { margin: 0; font-size: 24px; }
     .head p { margin: 8px 0 0; font-size: 14px; color: var(--sub); }
-    .tabs {
-      display: flex;
-      gap: 8px;
-      padding: 14px 24px 0;
-    }
-    .tab-btn {
-      border: 1px solid var(--line);
-      background: var(--tab-off);
-      color: #2b4762;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .tab-btn.active {
-      color: #fff;
-      border-color: transparent;
-      background: linear-gradient(135deg, var(--primary), var(--primary-2));
-    }
-    .body {
-      display: grid;
-      gap: 14px;
-      padding: 14px 24px 24px;
-    }
-    .view { display: none; }
-    .view.active { display: grid; gap: 14px; }
+    .body { display: grid; gap: 14px; padding: 18px 24px 24px; }
     textarea {
       width: 100%;
       min-height: 126px;
@@ -146,51 +120,24 @@
 <body>
   <main class="panel">
     <section class="head">
-      <h1>행정 업무 자동 분류 화면</h1>
-      <p>민원 소관 부서 분류와 사업체 산업분류 코드 매칭을 한 화면에서 사용할 수 있습니다.</p>
-    </section>
-
-    <section class="tabs">
-      <button class="tab-btn active" data-tab="complaint">민원 분류</button>
-      <button class="tab-btn" data-tab="industry">산업분류 코드 매칭</button>
+      <h1>산업분류 코드 매칭</h1>
+      <p>사업체 업종 내역을 입력하면 KSIC 규칙 기반으로 산업분류 코드를 추천합니다.</p>
     </section>
 
     <section class="body">
-      <section id="complaintView" class="view active">
-        <textarea id="complaintInput" placeholder="예: 불법주정차 차량 때문에 버스가 통행을 못합니다."></textarea>
-        <div class="row">
-          <button id="complaintRun" type="button">민원 분류하기</button>
-          <button id="complaintSample" class="ghost" type="button">샘플 넣기</button>
-        </div>
-        <section id="complaintResult" class="result" aria-live="polite">
-          <h2>결과 대기 중</h2>
-          <p class="meta">민원 내용을 입력한 뒤 분류를 실행하세요.</p>
-        </section>
-      </section>
-
-      <section id="industryView" class="view">
-        <textarea id="industryInput" placeholder="예: 유리 제조"></textarea>
-        <div class="row">
-          <button id="industryRun" type="button">코드 매칭하기</button>
-          <button id="industrySample" class="ghost" type="button">샘플 넣기</button>
-        </div>
-        <section id="industryResult" class="result" aria-live="polite">
-          <h2>결과 대기 중</h2>
-          <p class="meta">사업체 업종 내역을 입력한 뒤 매칭을 실행하세요.</p>
-        </section>
+      <textarea id="industryInput" placeholder="예: 유리 제조"></textarea>
+      <div class="row">
+        <button id="industryRun" type="button">코드 매칭하기</button>
+        <button id="industrySample" class="ghost" type="button">샘플 넣기</button>
+      </div>
+      <section id="industryResult" class="result" aria-live="polite">
+        <h2>결과 대기 중</h2>
+        <p class="meta">업종 내역을 입력한 뒤 매칭을 실행하세요.</p>
       </section>
     </section>
   </main>
 
   <script>
-    const complaintRules = {
-      "교통행정과": { keywords: { "버스": 3, "택시": 3, "교통신호": 4, "신호등": 4, "불법주정차": 5, "주차": 3 } },
-      "도로관리과": { keywords: { "도로": 2, "포트홀": 5, "아스팔트": 4, "보도블록": 4, "가로등": 3 } },
-      "환경관리과": { keywords: { "쓰레기": 4, "폐기물": 4, "악취": 5, "미세먼지": 4, "무단투기": 5 } },
-      "복지정책과": { keywords: { "기초생활": 4, "생계급여": 4, "복지": 2, "돌봄": 3, "긴급지원": 4 } },
-      "상하수도과": { keywords: { "수돗물": 4, "누수": 5, "하수구": 4, "하수도": 4, "침수": 4 } }
-    };
-
     const industryRules = {
       "C": { name: "제조업 (KSIC 제11차 대분류)", keywords: { "제조": 4, "제조업": 6, "가공": 2 } },
       "23": { name: "비금속 광물제품 제조업 (KSIC 제11차 중분류)", keywords: { "비금속": 8, "광물제품": 7, "세라믹": 6, "유리": 5 } },
@@ -235,42 +182,22 @@
       return { entries, top, confidence };
     }
 
-    function renderTable(candidates, type) {
-      if (type === "complaint") {
-        return candidates.map((c) => `<tr><td>${c.key}</td><td>${c.score}</td></tr>`).join("");
-      }
+    function renderTable(candidates) {
       return candidates.map((c) => `<tr><td>${c.key}</td><td>${c.name}</td><td>${c.score}</td></tr>`).join("");
-    }
-
-    function runComplaint() {
-      const text = document.getElementById("complaintInput").value.trim();
-      if (!text) return alert("민원 내용을 입력해주세요.");
-      const { entries, top, confidence } = scoreByRules(text, complaintRules);
-      const candidates = entries.slice(0, 3);
-      const resultBox = document.getElementById("complaintResult");
-      const chips = top.score > 0 ? top.hits.map((k) => `<span class="chip">${k}</span>`).join("") : `<span class="warn">매칭 키워드 없음 (수동 검토 권장)</span>`;
-      const dept = top.score > 0 ? top.key : "민원총괄(수동분류)";
-      resultBox.innerHTML = `
-        <h2>추천 부서: ${dept}</h2>
-        <p class="meta">신뢰도: ${confidence.toFixed(3)} | 입력: ${text}</p>
-        <div class="chips">${chips}</div>
-        <table>
-          <thead><tr><th>후보 부서</th><th>점수</th></tr></thead>
-          <tbody>${renderTable(candidates, "complaint")}</tbody>
-        </table>
-      `;
     }
 
     function runIndustry() {
       const text = document.getElementById("industryInput").value.trim();
       if (!text) return alert("업종 내역을 입력해주세요.");
+
       const { entries, top, confidence } = scoreByRules(text, industryRules);
       const candidates = entries.slice(0, 3);
       const resultBox = document.getElementById("industryResult");
       const chips = top.score > 0 ? top.hits.map((k) => `<span class="chip">${k}</span>`).join("") : `<span class="warn">매칭 키워드 없음 (수동 분류 필요)</span>`;
       const matchedCode = top.score > 0 ? top.key : "UNMATCHED";
       const matchedName = top.score > 0 ? top.name : "수동분류 필요";
-      const rows = top.score > 0 ? renderTable(candidates, "industry") : `<tr><td colspan="3">유효한 매칭 후보가 없습니다.</td></tr>`;
+      const rows = top.score > 0 ? renderTable(candidates) : `<tr><td colspan="3">유효한 매칭 후보가 없습니다.</td></tr>`;
+
       resultBox.innerHTML = `
         <h2>추천 코드: ${matchedCode}</h2>
         <p class="meta">산업분류명: ${matchedName}</p>
@@ -283,24 +210,10 @@
       `;
     }
 
-    document.getElementById("complaintRun").addEventListener("click", runComplaint);
     document.getElementById("industryRun").addEventListener("click", runIndustry);
-    document.getElementById("complaintSample").addEventListener("click", () => {
-      document.getElementById("complaintInput").value = "불법주정차 차량 때문에 버스가 통행을 못합니다. 단속 요청합니다.";
-    });
     document.getElementById("industrySample").addEventListener("click", () => {
-      document.getElementById("industryInput").value = "유리 제조";
+      document.getElementById("industryInput").value = "자동차 제조";
     });
-
-    for (const btn of document.querySelectorAll(".tab-btn")) {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        const tab = btn.dataset.tab;
-        document.getElementById("complaintView").classList.toggle("active", tab === "complaint");
-        document.getElementById("industryView").classList.toggle("active", tab === "industry");
-      });
-    }
   </script>
 </body>
 </html>
