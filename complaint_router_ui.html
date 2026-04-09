@@ -82,6 +82,26 @@
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { border-top: 1px solid var(--line); text-align: left; padding: 8px 6px; }
     th { color: #2e4e69; font-size: 13px; }
+    .candidate-btn {
+      border: 0;
+      background: transparent;
+      color: #175f86;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 0;
+    }
+    .guide {
+      margin-top: 12px;
+      border-top: 1px dashed var(--line);
+      padding-top: 10px;
+    }
+    .guide h3 { margin: 0 0 8px; font-size: 15px; }
+    .guide .subsec { margin: 8px 0; }
+    .guide .subsec strong { display: block; color: #24425d; margin-bottom: 4px; }
+    .guide ul { margin: 0; padding-left: 18px; color: #30495f; }
+    .guide li { margin: 2px 0; }
   </style>
 </head>
 <body>
@@ -117,7 +137,35 @@
       운송: new Set(["운송", "물류", "배송", "택배", "화물", "여객", "운반"])
     };
 
+    const SYNONYM_GROUPS = {
+      정수기: new Set(["가전", "가전제품", "생활가전", "소형가전", "주방가전"]),
+      공기청정기: new Set(["가전", "가전제품", "생활가전"]),
+      비데: new Set(["가전", "가전제품", "생활가전"]),
+      냉장고: new Set(["가전", "가전제품"]),
+      세탁기: new Set(["가전", "가전제품"]),
+      tv: new Set(["가전", "가전제품", "전자제품"]),
+      전자상거래: new Set(["온라인", "인터넷", "쇼핑몰", "이커머스"]),
+      쇼핑몰: new Set(["전자상거래", "온라인", "인터넷", "이커머스"]),
+      자동차: new Set(["차량", "모빌리티", "완성차"]),
+      오토바이: new Set(["이륜차", "모터사이클"]),
+      지게차: new Set(["산업용", "운반장비", "건설기계"]),
+      건설: new Set(["공사", "시공", "건축", "토목"]),
+      시멘트: new Set(["건설자재", "비금속", "광물제품"]),
+      유리: new Set(["비금속", "광물제품", "판유리"]),
+      창호: new Set(["유리", "샤시", "건설자재"]),
+      카페: new Set(["커피", "음료", "음료점"]),
+      베이커리: new Set(["제과", "제빵", "빵"]),
+      치킨: new Set(["음식점", "외식", "배달"]),
+      소프트웨어: new Set(["소프트웨어개발", "프로그램", "개발", "it"]),
+      앱개발: new Set(["소프트웨어", "프로그램", "개발", "it"]),
+      데이터센터: new Set(["서버", "호스팅", "클라우드"]),
+      병원: new Set(["의료", "의원", "진료"]),
+      약국: new Set(["의약품", "의료"]),
+      화장품: new Set(["뷰티", "미용", "코스메틱"])
+    };
+
     let KSIC_ITEMS = [];
+    let KSIC_BY_CODE = new Map();
 
     function normalize(text) {
       return (text || "")
@@ -128,13 +176,13 @@
         .trim();
     }
 
-    function tokens(text) {
+    function tokens(text, removeStopwords = true) {
       const norm = normalize(text);
       if (!norm) return [];
       return norm
         .split(" ")
         .map((s) => s.trim())
-        .filter((s) => s.length >= 2 && !STOPWORDS.has(s));
+        .filter((s) => s.length >= 2 && (!removeStopwords || !STOPWORDS.has(s)));
     }
 
     function inferIntents(inputTokens) {
@@ -147,12 +195,37 @@
       return intents;
     }
 
+    function expandTokens(inputTokens) {
+      const expanded = [...inputTokens];
+      const seen = new Set(expanded);
+      for (const tok of inputTokens) {
+        const aliases = SYNONYM_GROUPS[tok];
+        if (!aliases) continue;
+        for (const alias of aliases) {
+          if (!seen.has(alias)) {
+            seen.add(alias);
+            expanded.push(alias);
+          }
+        }
+      }
+      return expanded;
+    }
+
     function textMatchScore(q, t) {
       if (!q || !t) return 0;
       if (q === t) return 30;
       if (t.includes(q)) return 16;
       if (q.includes(t)) return 11;
       return 0;
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function overlapScore(inputTokens, targetTokens, perToken) {
@@ -169,8 +242,10 @@
 
     function scoreItem(inputText, item) {
       const queryNorm = normalize(inputText);
-      const inputTokens = tokens(inputText);
-      const inputIntents = inferIntents(inputTokens);
+      const inputTokensRaw = tokens(inputText, false);
+      const inputTokens = tokens(inputText, true);
+      const inputTokensExpanded = expandTokens(inputTokens);
+      const inputIntents = inferIntents(inputTokensRaw);
 
       const nameNorm = normalize(item.name || "");
       let score = textMatchScore(queryNorm, nameNorm);
@@ -181,6 +256,9 @@
       const nameOverlap = overlapScore(inputTokens, nameSet, 6.2);
       score += nameOverlap.score;
       hits.push(...nameOverlap.hits);
+      const nameSynOverlap = overlapScore(inputTokensExpanded, nameSet, 2.3);
+      score += nameSynOverlap.score;
+      hits.push(...nameSynOverlap.hits);
 
       const notes = Array.isArray(item.notes) ? item.notes : [];
       const includeNotes = Array.isArray(item.include_notes) ? item.include_notes : [];
@@ -194,6 +272,9 @@
         const noteOverlap = overlapScore(inputTokens, noteSet, 2.4);
         score += noteOverlap.score;
         hits.push(...noteOverlap.hits);
+        const noteSynOverlap = overlapScore(inputTokensExpanded, noteSet, 1.1);
+        score += noteSynOverlap.score;
+        hits.push(...noteSynOverlap.hits);
       }
 
       for (const note of includeNotes) {
@@ -201,6 +282,9 @@
         const overlap = overlapScore(inputTokens, set, 2.9);
         score += overlap.score;
         hits.push(...overlap.hits);
+        const synOverlap = overlapScore(inputTokensExpanded, set, 1.2);
+        score += synOverlap.score;
+        hits.push(...synOverlap.hits);
       }
 
       for (const note of exampleNotes) {
@@ -208,6 +292,9 @@
         const overlap = overlapScore(inputTokens, set, 2.6);
         score += overlap.score;
         hits.push(...overlap.hits);
+        const synOverlap = overlapScore(inputTokensExpanded, set, 1.2);
+        score += synOverlap.score;
+        hits.push(...synOverlap.hits);
       }
 
       const querySet = new Set(inputTokens);
@@ -277,6 +364,41 @@
       };
     }
 
+    function renderGuideByCode(code) {
+      const box = document.getElementById("guidePanel");
+      if (!box) return;
+      const item = KSIC_BY_CODE.get(String(code));
+      if (!item) {
+        box.innerHTML = `<h3>산업분류 해설</h3><p class="meta">선택한 코드의 해설 데이터를 찾지 못했습니다.</p>`;
+        return;
+      }
+
+      const renderList = (arr) => {
+        if (!arr || !arr.length) return `<p class="meta">등록된 내용 없음</p>`;
+        return `<ul>${arr.slice(0, 8).map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>`;
+      };
+
+      box.innerHTML = `
+        <h3>산업분류 해설: ${escapeHtml(item.code)} - ${escapeHtml(item.name)}</h3>
+        <div class="subsec">
+          <strong>설명</strong>
+          ${renderList(item.notes)}
+        </div>
+        <div class="subsec">
+          <strong>포함</strong>
+          ${renderList(item.include_notes)}
+        </div>
+        <div class="subsec">
+          <strong>제외</strong>
+          ${renderList(item.exclude_notes)}
+        </div>
+        <div class="subsec">
+          <strong>예시</strong>
+          ${renderList(item.example_notes)}
+        </div>
+      `;
+    }
+
     function render(result, text) {
       const resultBox = document.getElementById("industryResult");
       const chips = result.matched_keywords.length
@@ -284,7 +406,13 @@
         : `<span class="warn">매칭 키워드 없음 (수동 분류 필요)</span>`;
 
       const rows = result.candidates.length
-        ? result.candidates.map((c) => `<tr><td>${c.code}</td><td>${c.name}</td><td>${c.score}</td></tr>`).join("")
+        ? result.candidates.map((c) => `
+          <tr>
+            <td><button type="button" class="candidate-btn" data-code="${escapeHtml(c.code)}">${escapeHtml(c.code)}</button></td>
+            <td>${escapeHtml(c.name)}</td>
+            <td>${c.score}</td>
+          </tr>
+        `).join("")
         : `<tr><td colspan="3">유효한 매칭 후보가 없습니다.</td></tr>`;
 
       resultBox.innerHTML = `
@@ -296,7 +424,21 @@
           <thead><tr><th>후보 코드</th><th>산업분류명</th><th>점수</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
+        <section class="guide" id="guidePanel">
+          <h3>산업분류 해설</h3>
+          <p class="meta">후보 코드(파란 글씨)를 클릭하면 해설을 볼 수 있습니다.</p>
+        </section>
       `;
+
+      for (const btn of resultBox.querySelectorAll(".candidate-btn")) {
+        btn.addEventListener("click", (event) => {
+          const code = event.currentTarget.dataset.code;
+          renderGuideByCode(code);
+        });
+      }
+      if (result.candidates.length) {
+        renderGuideByCode(result.candidates[0].code);
+      }
     }
 
     async function loadIndex() {
@@ -305,6 +447,7 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         KSIC_ITEMS = Array.isArray(data.items) ? data.items : [];
+        KSIC_BY_CODE = new Map(KSIC_ITEMS.map((item) => [String(item.code), item]));
         const source = data.source ? `출처: ${data.source}` : "출처 정보 없음";
         document.getElementById("sourceText").textContent = `KSIC 제11차 데이터 반영 (${KSIC_ITEMS.length}개 항목) | ${source}`;
       } catch (error) {

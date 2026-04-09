@@ -41,6 +41,39 @@ INTENT_TOKENS = {
     "운송": {"운송", "물류", "배송", "택배", "화물", "여객", "운반"},
 }
 
+SYNONYM_GROUPS = {
+    # retail / distribution
+    "정수기": {"가전", "가전제품", "생활가전", "소형가전", "주방가전"},
+    "공기청정기": {"가전", "가전제품", "생활가전"},
+    "비데": {"가전", "가전제품", "생활가전"},
+    "냉장고": {"가전", "가전제품"},
+    "세탁기": {"가전", "가전제품"},
+    "tv": {"가전", "가전제품", "전자제품"},
+    "전자상거래": {"온라인", "인터넷", "쇼핑몰", "이커머스"},
+    "쇼핑몰": {"전자상거래", "온라인", "인터넷", "이커머스"},
+    # mobility / machinery
+    "자동차": {"차량", "모빌리티", "완성차"},
+    "오토바이": {"이륜차", "모터사이클"},
+    "지게차": {"산업용", "운반장비", "건설기계"},
+    # construction / materials
+    "건설": {"공사", "시공", "건축", "토목"},
+    "시멘트": {"건설자재", "비금속", "광물제품"},
+    "유리": {"비금속", "광물제품", "판유리"},
+    "창호": {"유리", "샤시", "건설자재"},
+    # food / beverage
+    "카페": {"커피", "음료", "음료점"},
+    "베이커리": {"제과", "제빵", "빵"},
+    "치킨": {"음식점", "외식", "배달"},
+    # ICT / professional
+    "소프트웨어": {"소프트웨어개발", "프로그램", "개발", "it"},
+    "앱개발": {"소프트웨어", "프로그램", "개발", "it"},
+    "데이터센터": {"서버", "호스팅", "클라우드"},
+    # healthcare / beauty
+    "병원": {"의료", "의원", "진료"},
+    "약국": {"의약품", "의료"},
+    "화장품": {"뷰티", "미용", "코스메틱"},
+}
+
 
 def normalize_text(text: str) -> str:
     lowered = text.lower().strip()
@@ -48,7 +81,7 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
-def extract_tokens(text: str) -> list[str]:
+def extract_tokens(text: str, *, remove_stopwords: bool = True) -> list[str]:
     normalized = normalize_text(text)
     if not normalized:
         return []
@@ -57,7 +90,7 @@ def extract_tokens(text: str) -> list[str]:
         token = token.strip()
         if len(token) < 2:
             continue
-        if token in STOPWORDS:
+        if remove_stopwords and token in STOPWORDS:
             continue
         out.append(token)
     return out
@@ -70,6 +103,18 @@ def infer_intents(tokens: list[str]) -> set[str]:
             if token in words:
                 hit.add(intent)
     return hit
+
+
+def expand_tokens(tokens: list[str]) -> list[str]:
+    expanded = list(tokens)
+    seen = set(expanded)
+    for token in tokens:
+        aliases = SYNONYM_GROUPS.get(token, set())
+        for alias in aliases:
+            if alias not in seen:
+                seen.add(alias)
+                expanded.append(alias)
+    return expanded
 
 
 @dataclass
@@ -151,8 +196,10 @@ class IndustryCodeMatcher:
 
     def _score(self, text: str, item: dict[str, Any]) -> Candidate:
         query_norm = normalize_text(text)
-        input_tokens = extract_tokens(text)
-        input_intents = infer_intents(input_tokens)
+        input_tokens_raw = extract_tokens(text, remove_stopwords=False)
+        input_tokens = extract_tokens(text, remove_stopwords=True)
+        input_tokens_expanded = expand_tokens(input_tokens)
+        input_intents = infer_intents(input_tokens_raw)
         hits: list[str] = []
         score = 0.0
 
@@ -168,6 +215,9 @@ class IndustryCodeMatcher:
         add, token_hits = self._token_overlap_score(input_tokens, name_tokens, per_token=6.2)
         score += add
         hits.extend(token_hits)
+        add_syn, syn_hits = self._token_overlap_score(input_tokens_expanded, name_tokens, per_token=2.3)
+        score += add_syn
+        hits.extend(syn_hits)
 
         notes = item.get("notes", [])
         include_notes = item.get("include_notes", [])
@@ -184,18 +234,27 @@ class IndustryCodeMatcher:
             add_note, hits_note = self._token_overlap_score(input_tokens, note_tokens, per_token=2.4)
             score += add_note
             note_hits.extend(hits_note)
+            add_note_syn, note_syn_hits = self._token_overlap_score(input_tokens_expanded, note_tokens, per_token=1.1)
+            score += add_note_syn
+            note_hits.extend(note_syn_hits)
 
         for note in include_notes:
             note_tokens = set(extract_tokens(note))
             add_inc, inc_hits = self._token_overlap_score(input_tokens, note_tokens, per_token=2.9)
             score += add_inc
             note_hits.extend(inc_hits)
+            add_inc_syn, inc_syn_hits = self._token_overlap_score(input_tokens_expanded, note_tokens, per_token=1.2)
+            score += add_inc_syn
+            note_hits.extend(inc_syn_hits)
 
         for note in example_notes:
             note_tokens = set(extract_tokens(note))
             add_ex, ex_hits = self._token_overlap_score(input_tokens, note_tokens, per_token=2.6)
             score += add_ex
             note_hits.extend(ex_hits)
+            add_ex_syn, ex_syn_hits = self._token_overlap_score(input_tokens_expanded, note_tokens, per_token=1.2)
+            score += add_ex_syn
+            note_hits.extend(ex_syn_hits)
 
         # 입력과 정확히 상충되는 제외 항목이 있는 경우 점수 감점
         query_token_set = set(input_tokens)
