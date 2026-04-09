@@ -62,4 +62,8 @@ python industry_code_matcher.py --csv input.csv --out output.csv --column 업종
 
 ## 참고
 
-현재 규칙 파일은 바로 사용 가능한 샘플입니다. 실제 운영 환경에서는 보유한 표준 산업분류 코드 마스터(전체 코드표)로 규칙을 확장해 정확도를 높이는 것을 권장합니다.
+- 현재 규칙 파일은 바로 사용 가능한 샘플이며, `건설` 관련 항목은 KSIC 제11차 분류 체계(대분류/중분류) 기준을 우선 반영했습니다.
+- 실제 운영 환경에서는 KSIC 제11차 전체 코드표(분류 항목표 + 해설서) 기준으로 규칙을 확장해 정확도를 높이는 것을 권장합니다.
+- 공식 출처:
+  - https://kostat.go.kr/board.es?act=view&bid=107&list_no=428660&mid=a10403040000&ref_bid=&tag=
+  - https://kssc.kostat.go.kr

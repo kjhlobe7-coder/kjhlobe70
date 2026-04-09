@@ -52,7 +52,6 @@ class IndustryCodeMatcher:
         tokens = self._extract_tokens(text)
 
         scored: list[tuple[str, float, list[str]]] = []
-
         for code, spec in self.rules.items():
             score = 0.0
             hits: list[str] = []
@@ -62,7 +61,6 @@ class IndustryCodeMatcher:
                 if not kw_n:
                     continue
 
-                # 부분 문자열 매칭 + 토큰 정확 일치에 가중치 보너스
                 if kw_n in normalized:
                     score += float(weight)
                     hits.append(kw)
@@ -110,12 +108,7 @@ class IndustryCodeMatcher:
             ],
         )
 
-    def process_csv(
-        self,
-        input_csv: str,
-        output_csv: str,
-        text_column: str | None = None,
-    ) -> tuple[int, str]:
+    def process_csv(self, input_csv: str, output_csv: str, text_column: str | None = None) -> tuple[int, str]:
         input_path = Path(input_csv)
         if not input_path.exists():
             raise FileNotFoundError(f"입력 CSV를 찾을 수 없습니다: {input_csv}")
@@ -148,10 +141,8 @@ class IndustryCodeMatcher:
             row["후보3"] = self._format_candidate(result.candidates, 2)
             enriched_rows.append(row)
 
-        output_path = Path(output_csv)
-        output_headers = list(enriched_rows[0].keys())
-        with output_path.open("w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=output_headers)
+        with Path(output_csv).open("w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(enriched_rows[0].keys()))
             writer.writeheader()
             writer.writerows(enriched_rows)
 
@@ -222,7 +213,7 @@ def main() -> None:
         return
 
     print("사용 예시:")
-    print('  python industry_code_matcher.py --text "스마트스토어로 생활용품 판매"')
+    print('  python industry_code_matcher.py --text "건설업"')
     print('  python industry_code_matcher.py --csv input.csv --out output.csv --column 업종내역')
 
 
