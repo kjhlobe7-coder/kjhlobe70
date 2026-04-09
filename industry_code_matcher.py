@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""사업체 업종 내역을 산업분류 코드로 매칭하는 규칙 기반 도구."""
+"""사업체 업종 내역을 KSIC 코드로 매칭하는 도구.
+
+기본 데이터는 `ksic_index_full.json`(통계청 제11차 원문 기반 추출)을 사용한다.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,20 @@ from pathlib import Path
 from typing import Any
 
 
+STOPWORDS = {
+    "제조",
+    "제조업",
+    "서비스",
+    "서비스업",
+    "업",
+    "업종",
+    "기타",
+    "및",
+    "도매",
+    "소매",
+}
+
+
 @dataclass
 class MatchResult:
     code: str
@@ -22,18 +39,31 @@ class MatchResult:
 
 
 class IndustryCodeMatcher:
-    def __init__(self, rules_path: str = "ksic_rules_sample.json") -> None:
+    def __init__(self, rules_path: str = "ksic_index_full.json") -> None:
         self.rules_path = Path(rules_path)
-        self.rules = self._load_rules()
+        self.index_items = self._load_items()
 
-    def _load_rules(self) -> dict[str, dict[str, Any]]:
+    def _load_items(self) -> list[dict[str, str]]:
         if not self.rules_path.exists():
-            raise FileNotFoundError(f"규칙 파일을 찾을 수 없습니다: {self.rules_path}")
-        with self.rules_path.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-        if not data:
-            raise ValueError("규칙 파일이 비어 있습니다.")
-        return data
+            fallback = Path("ksic_rules_sample.json")
+            if fallback.exists():
+                with fallback.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return [{"code": code, "name": v.get("name", code)} for code, v in data.items()]
+            raise FileNotFoundError(f"규칙/색인 파일을 찾을 수 없습니다: {self.rules_path}")
+
+        with self.rules_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # full index format
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return [{"code": str(it["code"]), "name": str(it["name"])} for it in data["items"] if "code" in it and "name" in it]
+
+        # legacy rule format
+        if isinstance(data, dict):
+            return [{"code": code, "name": v.get("name", code)} for code, v in data.items()]
+
+        raise ValueError("지원하지 않는 데이터 형식입니다.")
 
     @staticmethod
     def _normalize(text: str) -> str:
@@ -42,37 +72,74 @@ class IndustryCodeMatcher:
         return re.sub(r"\s+", "", lowered)
 
     @staticmethod
-    def _extract_tokens(text: str) -> set[str]:
-        parts = re.split(r"[^\w가-힣]+", text.lower())
-        return {p for p in parts if p}
+    def _tokens(text: str) -> list[str]:
+        raw = re.split(r"[^\w가-힣]+", text.lower())
+        out: list[str] = []
+        for t in raw:
+            t = t.strip()
+            if not t:
+                continue
+            if t in STOPWORDS:
+                continue
+            if len(t) < 2:
+                continue
+            out.append(t)
+        return out
+
+    def _score_item(self, input_text: str, code: str, name: str) -> tuple[float, list[str]]:
+        input_norm = self._normalize(input_text)
+        name_norm = self._normalize(name)
+        input_tokens = self._tokens(input_text)
+        name_tokens = self._tokens(name)
+
+        score = 0.0
+        hits: list[str] = []
+
+        if input_norm == name_norm:
+            score += 20.0
+            hits.append(name)
+        elif input_norm and input_norm in name_norm:
+            score += 12.0
+            hits.append(input_text.strip())
+        elif name_norm and name_norm in input_norm:
+            score += 8.0
+            hits.append(name)
+
+        for tok in set(name_tokens):
+            if tok in input_norm:
+                score += min(8.0, 1.5 + len(tok) * 0.8)
+                hits.append(tok)
+
+        for tok in set(input_tokens):
+            if tok in name_norm:
+                score += min(6.0, 1.0 + len(tok) * 0.7)
+                hits.append(tok)
+
+        # 코드 자체 검색 보너스
+        if code.lower() in input_text.lower():
+            score += 10.0
+            hits.append(code)
+
+        # 너무 포괄적인 대분류 문자코드는 점수 소폭 감산
+        if re.fullmatch(r"[A-U]", code):
+            score *= 0.85
+
+        dedup_hits = sorted(set(hits), key=lambda x: (len(x), x), reverse=True)
+        return score, dedup_hits[:6]
 
     def match(self, business_text: str, top_k: int = 3) -> MatchResult:
         text = business_text.strip()
-        normalized = self._normalize(text)
-        tokens = self._extract_tokens(text)
+        scored: list[tuple[str, str, float, list[str]]] = []
 
-        scored: list[tuple[str, float, list[str]]] = []
-        for code, spec in self.rules.items():
-            score = 0.0
-            hits: list[str] = []
-            for keyword, weight in spec.get("keywords", {}).items():
-                kw = str(keyword)
-                kw_n = self._normalize(kw)
-                if not kw_n:
-                    continue
+        for item in self.index_items:
+            code = item["code"]
+            name = item["name"]
+            score, hits = self._score_item(text, code, name)
+            scored.append((code, name, score, hits))
 
-                if kw_n in normalized:
-                    score += float(weight)
-                    hits.append(kw)
-                elif kw.lower() in tokens:
-                    score += float(weight) * 0.7
-                    hits.append(kw)
-
-            scored.append((code, score, hits))
-
-        scored.sort(key=lambda x: x[1], reverse=True)
-        best_code, best_score, best_hits = scored[0]
-        second_score = scored[1][1] if len(scored) > 1 else 0.0
+        scored.sort(key=lambda x: x[2], reverse=True)
+        best_code, best_name, best_score, best_hits = scored[0]
+        second_score = scored[1][2] if len(scored) > 1 else 0.0
 
         if best_score <= 0:
             return MatchResult(
@@ -88,16 +155,12 @@ class IndustryCodeMatcher:
 
         return MatchResult(
             code=best_code,
-            name=self.rules[best_code].get("name", ""),
+            name=best_name,
             confidence=confidence,
             matched_keywords=best_hits,
             candidates=[
-                {
-                    "code": code,
-                    "name": self.rules[code].get("name", ""),
-                    "score": score,
-                }
-                for code, score, _hits in scored[:top_k]
+                {"code": code, "name": name, "score": round(score, 3)}
+                for code, name, score, _hits in scored[:top_k]
             ],
         )
 
@@ -116,12 +179,9 @@ class IndustryCodeMatcher:
 
         col = text_column or self._guess_text_column(headers)
         if not col:
-            raise ValueError(
-                "업종 컬럼을 찾지 못했습니다. --column 옵션으로 지정해 주세요. "
-                f"(현재 컬럼: {headers})"
-            )
+            raise ValueError(f"업종 컬럼을 찾지 못했습니다. --column으로 지정하세요. (현재: {headers})")
 
-        enriched_rows: list[dict[str, Any]] = []
+        out_rows: list[dict[str, Any]] = []
         for row in rows:
             text = (row.get(col) or "").strip()
             result = self.match(text)
@@ -132,33 +192,24 @@ class IndustryCodeMatcher:
             row["후보1"] = self._format_candidate(result.candidates, 0)
             row["후보2"] = self._format_candidate(result.candidates, 1)
             row["후보3"] = self._format_candidate(result.candidates, 2)
-            enriched_rows.append(row)
+            out_rows.append(row)
 
         with Path(output_csv).open("w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=list(enriched_rows[0].keys()))
+            writer = csv.DictWriter(f, fieldnames=list(out_rows[0].keys()))
             writer.writeheader()
-            writer.writerows(enriched_rows)
+            writer.writerows(out_rows)
 
-        return len(enriched_rows), col
+        return len(out_rows), col
 
     @staticmethod
     def _guess_text_column(headers: list[str]) -> str | None:
-        candidates = [
-            "업종내역",
-            "업종",
-            "업종명",
-            "사업내용",
-            "종목",
-            "업태",
-            "description",
-            "business_type",
-        ]
+        candidates = ["업종내역", "업종", "업종명", "사업내용", "종목", "업태", "description", "business_type"]
         lowered = {h.lower(): h for h in headers}
-        for name in candidates:
-            if name in headers:
-                return name
-            if name.lower() in lowered:
-                return lowered[name.lower()]
+        for c in candidates:
+            if c in headers:
+                return c
+            if c.lower() in lowered:
+                return lowered[c.lower()]
         return None
 
     @staticmethod
@@ -171,11 +222,11 @@ class IndustryCodeMatcher:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="업종 내역 -> 산업분류코드 매칭 도구")
-    parser.add_argument("--rules", default="ksic_rules_sample.json", help="규칙 JSON 파일 경로")
+    parser.add_argument("--rules", default="ksic_index_full.json", help="규칙/색인 JSON 경로")
     parser.add_argument("--text", help="단건 업종 텍스트")
-    parser.add_argument("--csv", help="입력 CSV 파일 경로")
-    parser.add_argument("--out", help="출력 CSV 파일 경로")
-    parser.add_argument("--column", help="업종 텍스트 컬럼명")
+    parser.add_argument("--csv", help="입력 CSV 경로")
+    parser.add_argument("--out", help="출력 CSV 경로")
+    parser.add_argument("--column", help="업종 컬럼명")
     return parser
 
 
@@ -198,7 +249,7 @@ def main() -> None:
 
     if args.csv:
         if not args.out:
-            raise ValueError("--csv 사용 시 --out 출력 파일 경로가 필요합니다.")
+            raise ValueError("--csv 사용 시 --out 경로가 필요합니다.")
         count, col = matcher.process_csv(args.csv, args.out, args.column)
         print(f"총 {count}건 처리 완료")
         print(f"업종 컬럼: {col}")
@@ -206,7 +257,7 @@ def main() -> None:
         return
 
     print("사용 예시:")
-    print('  python industry_code_matcher.py --text "건설업"')
+    print('  python industry_code_matcher.py --text "자동차 제조"')
     print('  python industry_code_matcher.py --csv input.csv --out output.csv --column 업종내역')
 
 

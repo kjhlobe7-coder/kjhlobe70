@@ -5,7 +5,9 @@
 ## 파일 구성
 
 - `industry_code_matcher.py`: 매칭 엔진 + CLI + CSV 일괄처리
-- `ksic_rules_sample.json`: 업종 키워드 규칙 샘플
+- `ksic_index_full.json`: KSIC 제11차 전체 분류 데이터(통계청 원문에서 추출)
+- `scripts/build_ksic_index.ps1`: 통계청 원문을 다시 내려받아 `ksic_index_full.json`을 재생성하는 스크립트
+- `ksic_rules_sample.json`: 간단 샘플 규칙(백업용)
 
 ## 1) 단건 매칭
 
@@ -43,7 +45,15 @@ python industry_code_matcher.py --csv input.csv --out output.csv --column 업종
 - `매칭키워드`
 - `후보1`, `후보2`, `후보3`
 
-## 규칙 튜닝
+## 데이터 갱신
+
+공식 원문에서 전체 분류 데이터를 다시 생성하려면:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_ksic_index.ps1
+```
+
+## 규칙/매칭 튜닝
 
 `ksic_rules_sample.json`에서 코드별 `keywords`를 수정/추가하면 정확도를 높일 수 있습니다.
 
@@ -62,8 +72,8 @@ python industry_code_matcher.py --csv input.csv --out output.csv --column 업종
 
 ## 참고
 
-- 현재 규칙 파일은 바로 사용 가능한 샘플이며, `건설` 관련 항목은 KSIC 제11차 분류 체계(대분류/중분류) 기준을 우선 반영했습니다.
-- 실제 운영 환경에서는 KSIC 제11차 전체 코드표(분류 항목표 + 해설서) 기준으로 규칙을 확장해 정확도를 높이는 것을 권장합니다.
+- 기본 매칭은 `ksic_index_full.json`(KSIC 제11차 전체 분류 데이터) 기반으로 동작합니다.
+- 실제 색인(유의어)까지 100% 반영하려면 통계분류포털의 색인 테이블 원문이 추가로 필요하며, 현재는 공식 분류 항목표 전량 반영 + 텍스트 유사 매칭 방식입니다.
 - 공식 출처:
   - https://kostat.go.kr/board.es?act=view&bid=107&list_no=428660&mid=a10403040000&ref_bid=&tag=
   - https://kssc.kostat.go.kr
