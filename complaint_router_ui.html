@@ -373,6 +373,46 @@
         return;
       }
 
+      const isTrivialList = (arr, baseName) => {
+        if (!arr || !arr.length) return true;
+        const cleaned = arr
+          .map((x) => String(x || "").trim())
+          .filter((x) => !!x);
+        if (!cleaned.length) return true;
+        if (cleaned.length === 1 && cleaned[0] === baseName) return true;
+        const unique = [...new Set(cleaned)];
+        return unique.every((x) => x === baseName || x.toLowerCase() === baseName.toLowerCase());
+      };
+
+      const parentCode = (() => {
+        const c = String(item.code || "");
+        if (/^[A-U]$/.test(c)) return "";
+        if (c.length <= 2) return "";
+        return c.slice(0, c.length - 1);
+      })();
+
+      const siblingExamples = (() => {
+        if (!parentCode) return [];
+        const siblings = KSIC_ITEMS
+          .filter((x) => String(x.code || "").startsWith(parentCode) && String(x.code || "") !== String(item.code || ""))
+          .slice(0, 12);
+        return siblings.map((s) => `${s.code} ${s.name}`);
+      })();
+
+      const parentItem = parentCode ? KSIC_BY_CODE.get(parentCode) : null;
+      const baseNotes = Array.isArray(item.notes) ? item.notes : [];
+      const baseInclude = Array.isArray(item.include_notes) ? item.include_notes : [];
+      const baseExclude = Array.isArray(item.exclude_notes) ? item.exclude_notes : [];
+      const baseExample = Array.isArray(item.example_notes) ? item.example_notes : [];
+
+      const finalInclude = isTrivialList(baseInclude, item.name)
+        ? (parentItem && Array.isArray(parentItem.notes) && parentItem.notes.length ? parentItem.notes.slice(0, 4) : baseInclude)
+        : baseInclude;
+      const finalExclude = baseExclude;
+      const finalExample = isTrivialList(baseExample, item.name)
+        ? (siblingExamples.length ? siblingExamples : baseExample)
+        : baseExample;
+
       const renderList = (arr) => {
         if (!arr || !arr.length) return `<p class="meta">등록된 내용 없음</p>`;
         return `<ul>${arr.slice(0, 8).map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>`;
@@ -382,19 +422,19 @@
         <h3>산업분류 해설: ${escapeHtml(item.code)} - ${escapeHtml(item.name)}</h3>
         <div class="subsec">
           <strong>설명</strong>
-          ${renderList(item.notes)}
+          ${renderList(baseNotes)}
         </div>
         <div class="subsec">
           <strong>포함</strong>
-          ${renderList(item.include_notes)}
+          ${renderList(finalInclude)}
         </div>
         <div class="subsec">
           <strong>제외</strong>
-          ${renderList(item.exclude_notes)}
+          ${renderList(finalExclude)}
         </div>
         <div class="subsec">
           <strong>예시</strong>
-          ${renderList(item.example_notes)}
+          ${renderList(finalExample)}
         </div>
       `;
     }
