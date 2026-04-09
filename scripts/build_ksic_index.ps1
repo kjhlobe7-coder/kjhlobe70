@@ -62,6 +62,14 @@ $ignore = @(
   "Services"
 )
 
+$wordInclude = "$([char]0xD3EC)$([char]0xD568)"    # 포함
+$wordRelevant = "$([char]0xD574)$([char]0xB2F9)"   # 해당
+$wordExclude = "$([char]0xC81C)$([char]0xC678)"    # 제외
+$wordHowever = "$([char]0xB2E4)$([char]0xB9CC)"    # 다만
+$wordExample = "$([char]0xC608)$([char]0xC2DC)"    # 예시
+$wordExampleShort = "$([char]0xC608)"               # 예
+$wordExamplePhrase = "$([char]0xC608)$([char]0xB97C) $([char]0xB4E4)"  # 예를 들
+
 foreach ($t in $allText) {
   $v = ($t -replace '\s+', ' ').Trim()
   if ($v.Length -eq 0) { continue }
@@ -79,9 +87,9 @@ foreach ($t in $allText) {
   if ($map[$currentCode].notes.Count -lt 25) {
     $map[$currentCode].notes.Add($v)
   }
-  if ($v -match '\uD3EC\uD568') { $map[$currentCode].include_notes.Add($v) } # 포함
-  if ($v -match '\uC81C\uC678') { $map[$currentCode].exclude_notes.Add($v) } # 제외
-  if ($v -match '\uC608\uC2DC|\uC608:') { $map[$currentCode].example_notes.Add($v) } # 예시/예:
+  if ($v -match "$wordInclude|$wordRelevant") { $map[$currentCode].include_notes.Add($v) }
+  if ($v -match "$wordExclude|$wordHowever") { $map[$currentCode].exclude_notes.Add($v) }
+  if ($v -match "$wordExample|${wordExampleShort}:|${wordExampleShort}\)|$wordExamplePhrase|^․|^·") { $map[$currentCode].example_notes.Add($v) }
 }
 
 function Unique-Trimmed([System.Collections.Generic.List[string]]$list, [int]$max = 12) {
@@ -107,6 +115,26 @@ $items = $map.GetEnumerator() |
     $inc = Unique-Trimmed $obj.include_notes 8
     $exc = Unique-Trimmed $obj.exclude_notes 8
     $exm = Unique-Trimmed $obj.example_notes 8
+
+    # Fallback enrichment: if include/example are empty, reuse explanatory notes
+    if ($inc.Count -eq 0 -and $n.Count -gt 0) {
+      $inc = @($n | Select-Object -First ([Math]::Min(3, $n.Count)))
+    }
+    if ($exc.Count -eq 0 -and $n.Count -gt 0) {
+      $excCandidates = @($n | Where-Object { $_ -match "$wordExclude|$wordHowever|$([char]0xC678)$([char]0xC758)" }) # 제외/다만/외의
+      if ($excCandidates.Count -gt 0) {
+        $exc = @($excCandidates | Select-Object -First ([Math]::Min(3, $excCandidates.Count)))
+      }
+    }
+    if ($exm.Count -eq 0 -and $n.Count -gt 0) {
+      $exmCandidates = @($n | Where-Object { $_ -match "$wordExample|${wordExampleShort}:|${wordExampleShort}\)|$wordExamplePhrase|^․|^·" })
+      if ($exmCandidates.Count -gt 0) {
+        $exm = @($exmCandidates | Select-Object -First ([Math]::Min(3, $exmCandidates.Count)))
+      } else {
+        $exm = @($n | Select-Object -First ([Math]::Min(2, $n.Count)))
+      }
+    }
+
     [PSCustomObject]@{
       code = $obj.code
       name = $obj.name
